@@ -16,6 +16,7 @@ public class FirebaseConfig {
 
     // Environment variable for production (the entire JSON string)
     private static final String FIREBASE_ENV_JSON = System.getenv("FIREBASE_CREDENTIAL_JSON");
+    System.out.println("Firebase JSON length: " + (FIREBASE_ENV_JSON != null ? FIREBASE_ENV_JSON.length() : 0));
 
     // Classpath location for local development
     private static final String LOCAL_JSON_PATH = "firebase/serviceAccountKey.json";
