@@ -13,7 +13,7 @@ function HomePage() {
       const idToken = await result.user.getIdToken(true);
 
       // Optional: send token to backend
-      const response = await fetch("http://localhost:8080/api/auth/login", {
+      const response = await fetch("https://summar-ai-z8vi.vercel.app/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
