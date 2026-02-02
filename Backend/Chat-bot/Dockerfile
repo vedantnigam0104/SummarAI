@@ -4,8 +4,11 @@ FROM eclipse-temurin:17-jdk-jammy
 # Set working directory
 WORKDIR /app
 
-# Copy everything
+# Copy everything from backend folder
 COPY . .
+
+# Make Maven wrapper executable
+RUN chmod +x mvnw
 
 # Build the project (skip tests)
 RUN ./mvnw clean package -DskipTests
@@ -15,3 +18,4 @@ EXPOSE 8080
 
 # Start the app
 CMD ["java", "-jar", "target/Chat-bot-0.0.1-SNAPSHOT.jar"]
+
