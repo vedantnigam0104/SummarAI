@@ -4,40 +4,38 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
 @Configuration
 public class FirebaseConfig {
 
-    // Environment variable for production (absolute path to service account JSON)
-    @Value("${FIREBASE_SERVICE_ACCOUNT_PATH:#{null}}")
-    private String envPath;
+    // Environment variable for production (the entire JSON string)
+    private static final String FIREBASE_ENV_JSON = System.getenv("FIREBASE_CREDENTIAL_JSON");
 
     // Classpath location for local development
-    @Value("${firebase.service.account.location:firebase/serviceAccountKey.json}")
-    private String classpathLocation;
+    private static final String LOCAL_JSON_PATH = "firebase/serviceAccountKey.json";
 
     @PostConstruct
     public void init() throws Exception {
 
         InputStream serviceAccount;
 
-        if (envPath != null && !envPath.isEmpty()) {
-            // ✅ Production: load JSON from external path
-            serviceAccount = new FileInputStream(envPath);
-            System.out.println("🔹 Firebase service account loaded from ENV path");
+        if (FIREBASE_ENV_JSON != null && !FIREBASE_ENV_JSON.isEmpty()) {
+            // ✅ Production (Render): read JSON from environment variable
+            serviceAccount = new ByteArrayInputStream(FIREBASE_ENV_JSON.getBytes());
+            System.out.println("🔹 Firebase service account loaded from environment variable");
         } else {
-            // ✅ Local dev: load JSON from resources/classpath
-            ClassPathResource resource = new ClassPathResource(classpathLocation);
+            // ✅ Local dev: read JSON from classpath
+            ClassPathResource resource = new ClassPathResource(LOCAL_JSON_PATH);
             serviceAccount = resource.getInputStream();
 
             if (serviceAccount == null) {
-                throw new IllegalStateException("❌ Firebase serviceAccountKey.json not found in classpath: " + classpathLocation);
+                throw new IllegalStateException("❌ Firebase serviceAccountKey.json not found in classpath: " + LOCAL_JSON_PATH);
             }
             System.out.println("🔹 Firebase service account loaded from classpath");
         }
