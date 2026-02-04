@@ -1,8 +1,9 @@
 package com.vedant.Chat_bot.controller;
 
 import com.google.firebase.auth.FirebaseToken;
+import com.vedant.Chat_bot.entity.User;
+import com.vedant.Chat_bot.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,34 +13,47 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final UserService userService;
+
+    public AuthController(UserService userService) {
+        this.userService = userService;
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(HttpServletRequest request) {
 
-        FirebaseToken decoded = (FirebaseToken) request.getAttribute("firebaseUser");
+        FirebaseToken decoded =
+                (FirebaseToken) request.getAttribute("firebaseUser");
 
         if (decoded == null) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid token"));
+            return ResponseEntity
+                    .status(401)
+                    .body(Map.of("error", "Invalid token"));
         }
 
-        Map<String, Object> firebaseClaims = (Map<String, Object>) decoded.getClaims().get("firebase");
+        // Extract provider (google, password, etc.)
+        Map<String, Object> firebaseClaims =
+                (Map<String, Object>) decoded.getClaims().get("firebase");
+
         String provider = firebaseClaims != null
                 ? firebaseClaims.get("sign_in_provider").toString()
                 : "unknown";
 
+        // Save user if not exists
+        User user = userService.saveUserIfNotExists(
+                decoded.getUid(),
+                decoded.getEmail(),
+                decoded.getName(),
+                provider
+        );
+
+        // Response to frontend
         return ResponseEntity.ok(Map.of(
-                "uid", decoded.getUid(),
-                "email", decoded.getEmail(),
-                "name", decoded.getName(),
-                "provider", provider
+                "id", user.getId(),
+                "uid", user.getFirebaseUid(),
+                "email", user.getEmail(),
+                "name", user.getName(),
+                "provider", user.getProvider()
         ));
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
-        // Optional: Clear any cookies if you are using them
-        // response.setHeader("Set-Cookie", "token=; HttpOnly; Path=/; Max-Age=0");
-
-        // Just return success; client is responsible for removing tokens
-        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 }
