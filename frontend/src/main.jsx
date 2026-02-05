@@ -7,18 +7,16 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    {/* 🔔 Toast MUST be outside auth provider */}
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        duration: 2000,
+      }}
+    />
+
     <UserProvider>
       <App />
-
-      {/* 🔔 Toast container (TOP-CENTER) */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 2000,
-        }}
-      />
     </UserProvider>
   </React.StrictMode>
 );
-
-
