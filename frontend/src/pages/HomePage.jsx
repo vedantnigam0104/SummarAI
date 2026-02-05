@@ -65,17 +65,23 @@ function HomePage() {
   };
 
   const handleLogout = async () => {
-    toast.loading("Logging out...");
-    try {
-      await signOut(auth);
-      setUser(null);
-      setShowDropdown(false);
-      toast.success("Logged out successfully 👋");
-    } catch (err) {
-      console.error(err);
-      toast.error("Logout failed ❌");
-    }
-  };
+  try {
+    await toast.promise(
+      signOut(auth),
+      {
+        loading: "Logging out...",
+        success: "Logged out successfully 👋",
+        error: "Logout failed ❌",
+      }
+    );
+
+    setUser(null);
+    setShowDropdown(false);
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   const handleSendPrompt = () => {
     if (!prompt.trim()) return;
