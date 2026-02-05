@@ -1,33 +1,41 @@
 import { useState } from "react";
 import { signInWithPopup, signOut } from "firebase/auth";
+import toast from "react-hot-toast";
 import { auth, googleProvider } from "../firebase";
 import { useUser } from "../context/UserContext";
 
 function HomePage() {
-  const { user, setUser, loading } = useUser(); // Added loading from context
+  const { user, setUser, loading } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const googleLogin = async () => {
+    if (loginLoading) return;
+
+    setLoginLoading(true);
+    const toastId = toast.loading("Signing in with Google...");
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken(true);
 
-      // Optional: send token to backend
-      const response = await fetch("https://summarai-3.onrender.com/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
+      const response = await fetch(
+        "https://summarai-3.onrender.com/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Login failed on backend");
+        throw new Error(errorData.error || "Backend login failed");
       }
 
-      const data = await response.json();
-      console.log("Backend response:", data);
+      await response.json();
 
       // Save user info in context
       setUser({
@@ -36,22 +44,27 @@ function HomePage() {
         avatar: result.user.photoURL,
       });
 
-      alert(`✅ Login successful! Welcome ${result.user.displayName}`);
+      toast.success(`Welcome ${result.user.displayName}! 🎉`, {
+        id: toastId,
+      });
     } catch (err) {
       console.error(err);
-      alert(`❌ Login failed: ${err.message}`);
+      toast.error(err.message || "Login failed", { id: toastId });
+    } finally {
+      setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
+    const toastId = toast.loading("Logging out...");
     try {
       await signOut(auth);
-      setUser(null); // Reset context
+      setUser(null);
       setShowDropdown(false);
-      alert("👋 Logged out successfully!");
+      toast.success("Logged out successfully 👋", { id: toastId });
     } catch (err) {
       console.error(err);
-      alert(`❌ Logout failed: ${err.message}`);
+      toast.error("Logout failed", { id: toastId });
     }
   };
 
@@ -70,17 +83,23 @@ function HomePage() {
       <nav className="flex justify-between items-center px-8 py-4 bg-white shadow-md relative">
         <h1 className="text-2xl font-bold text-indigo-600">AI ChatBot</h1>
 
-        {/* Login Button or Avatar */}
         {!user ? (
           <button
             onClick={googleLogin}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
+            disabled={loginLoading}
+            className={`px-4 py-2 rounded-lg shadow transition text-white ${
+              loginLoading
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
-            Sign in with Google
+            {loginLoading ? "Signing in..." : "Sign in with Google"}
           </button>
         ) : (
           <div className="relative flex items-center space-x-2">
-            <span className="text-gray-700 font-medium">Hi, {user.name}</span>
+            <span className="text-gray-700 font-medium">
+              Hi, {user.name}
+            </span>
 
             <img
               src={user.avatar}
@@ -90,7 +109,6 @@ function HomePage() {
               onClick={() => setShowDropdown(!showDropdown)}
             />
 
-            {/* Dropdown */}
             {showDropdown && (
               <div className="absolute right-0 mt-12 w-32 bg-white shadow-lg rounded-lg border border-gray-200 z-10">
                 <button
