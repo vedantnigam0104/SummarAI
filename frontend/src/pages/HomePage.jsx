@@ -3,12 +3,7 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import { auth, googleProvider } from "../firebase";
 import { useUser } from "../context/UserContext";
 import toast from "react-hot-toast";
-import {
-  FiSend,
-  FiFileText,
-  FiVideo,
-  FiMusic,
-} from "react-icons/fi";
+import { FiSend, FiFileText, FiVideo, FiMusic } from "react-icons/fi";
 
 function HomePage() {
   const { user, setUser, loading } = useUser();
@@ -20,19 +15,12 @@ function HomePage() {
     if (loginLoading) return;
 
     setLoginLoading(true);
-    const toastId = toast.loading("Signing in with Google...");
+    toast.dismiss(); // clear stale toasts
+    toast.loading("Signing in with Google...");
 
     try {
+      // 1️⃣ Firebase auth (SOURCE OF TRUTH)
       const result = await signInWithPopup(auth, googleProvider);
-      const idToken = await result.user.getIdToken(true);
-
-      await fetch("https://summarai-3.onrender.com/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
 
       setUser({
         name: result.user.displayName,
@@ -40,27 +28,52 @@ function HomePage() {
         avatar: result.user.photoURL,
       });
 
-      toast.success(`Welcome ${result.user.displayName}! 🎉`, {
-        id: toastId,
-      });
+      toast.success(`Welcome ${result.user.displayName}! 🎉`);
+
+      // 2️⃣ Backend call (BEST EFFORT)
+      try {
+        const idToken = await result.user.getIdToken(true);
+
+        const response = await fetch(
+          "https://summarai-3.onrender.com/api/auth/login",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          toast("Logged in, but backend sync pending ⏳", {
+            icon: "⚠️",
+          });
+        }
+      } catch (backendErr) {
+        console.warn("Backend login failed:", backendErr);
+        toast("Logged in, backend temporarily unavailable ⚠️", {
+          icon: "⚠️",
+        });
+      }
     } catch (err) {
       console.error(err);
-      toast.error("Login failed ❌", { id: toastId });
+      toast.error("Google login failed ❌");
     } finally {
       setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    const toastId = toast.loading("Logging out...");
+    toast.loading("Logging out...");
     try {
       await signOut(auth);
       setUser(null);
       setShowDropdown(false);
-      toast.success("Logged out successfully 👋", { id: toastId });
+      toast.success("Logged out successfully 👋");
     } catch (err) {
       console.error(err);
-      toast.error("Logout failed ❌", { id: toastId });
+      toast.error("Logout failed ❌");
     }
   };
 
@@ -127,63 +140,50 @@ function HomePage() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 text-center">
         {!user ? (
-          /* Instruction when NOT logged in */
           <div className="bg-white p-8 rounded-2xl shadow-lg max-w-xl">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
               Welcome to SummarAI 👋
             </h2>
             <p className="text-gray-600 mb-6">
-              To use SummarAI and start chatting with your PDFs, videos, and
-              audios, please sign in with Google first.
+              Please sign in with Google to use SummarAI.
             </p>
             <p className="text-indigo-600 font-medium">
-              🔐 Login is required to continue
+              🔐 Login required
             </p>
           </div>
         ) : (
-          /* Logged-in welcome */
           <div className="max-w-2xl mb-10">
             <h2 className="text-4xl font-bold text-gray-800 mb-3">
               Ask anything. Upload anything.
             </h2>
             <p className="text-gray-600">
-              Upload PDFs, videos, or audios and get instant AI-powered summaries
-              and answers.
+              PDFs, videos, audios — summarized instantly.
             </p>
           </div>
         )}
       </main>
 
-      {/* Chat Input Bar (Only when logged in) */}
+      {/* Chat Input */}
       {user && (
         <div className="w-full px-4 pb-6">
           <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg flex items-center gap-3 px-4 py-3">
-            {/* Upload Icons */}
             <div className="flex items-center gap-3 text-gray-500">
-              <button title="Upload PDF" className="hover:text-indigo-600">
-                <FiFileText size={20} />
-              </button>
-              <button title="Upload Video" className="hover:text-indigo-600">
-                <FiVideo size={20} />
-              </button>
-              <button title="Upload Audio" className="hover:text-indigo-600">
-                <FiMusic size={20} />
-              </button>
+              <FiFileText size={20} />
+              <FiVideo size={20} />
+              <FiMusic size={20} />
             </div>
 
-            {/* Prompt Input */}
             <input
               type="text"
               placeholder="Ask a question or upload a file..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="flex-1 outline-none text-gray-700 placeholder-gray-400 px-2"
+              className="flex-1 outline-none px-2"
             />
 
-            {/* Send Button */}
             <button
               onClick={handleSendPrompt}
-              className="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition"
+              className="bg-indigo-600 text-white p-2 rounded-full"
             >
               <FiSend size={18} />
             </button>
