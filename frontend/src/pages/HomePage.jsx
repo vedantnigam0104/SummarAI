@@ -1,26 +1,43 @@
 import { useState } from "react";
 import { signInWithPopup, signOut } from "firebase/auth";
-import toast from "react-hot-toast";
 import { auth, googleProvider } from "../firebase";
 import { useUser } from "../context/UserContext";
+import toast from "react-hot-toast";
+import {
+  FiSend,
+  FiFileText,
+  FiVideo,
+  FiMusic,
+} from "react-icons/fi";
 
 function HomePage() {
-  const { user, loading } = useUser();
+  const { user, setUser, loading } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
 
   const googleLogin = async () => {
-    const toastId = toast.loading("Opening Google sign-in...");
+    if (loginLoading) return;
+
+    setLoginLoading(true);
+    const toastId = toast.loading("Signing in with Google...");
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
-
-      // 🔹 Fire backend sync in background (DO NOT BLOCK UI)
       const idToken = await result.user.getIdToken(true);
-      fetch("https://summarai-3.onrender.com/api/auth/login", {
+
+      await fetch("https://summarai-3.onrender.com/api/auth/login", {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
+      });
+
+      setUser({
+        name: result.user.displayName,
+        email: result.user.email,
+        avatar: result.user.photoURL,
       });
 
       toast.success(`Welcome ${result.user.displayName}! 🎉`, {
@@ -28,24 +45,31 @@ function HomePage() {
       });
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Login failed", { id: toastId });
+      toast.error("Login failed ❌", { id: toastId });
+    } finally {
+      setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
     const toastId = toast.loading("Logging out...");
-
     try {
       await signOut(auth);
+      setUser(null);
       setShowDropdown(false);
       toast.success("Logged out successfully 👋", { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error("Logout failed", { id: toastId });
+      toast.error("Logout failed ❌", { id: toastId });
     }
   };
 
-  // ✅ Prevent UI flash while Firebase restores auth state
+  const handleSendPrompt = () => {
+    if (!prompt.trim()) return;
+    console.log("User prompt:", prompt);
+    setPrompt("");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -55,37 +79,42 @@ function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex flex-col">
       {/* Navbar */}
-      <nav className="flex justify-between items-center px-8 py-4 bg-white shadow-md relative">
-        <h1 className="text-2xl font-bold text-indigo-600">AI ChatBot</h1>
+      <nav className="flex justify-between items-center px-8 py-4 bg-white shadow-sm">
+        <h1 className="text-2xl font-extrabold text-indigo-600 tracking-tight">
+          SummarAI
+        </h1>
 
         {!user ? (
           <button
             onClick={googleLogin}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
+            disabled={loginLoading}
+            className={`px-5 py-2 rounded-full shadow text-white transition ${
+              loginLoading
+                ? "bg-indigo-400 cursor-not-allowed"
+                : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
           >
-            Sign in with Google
+            {loginLoading ? "Signing in..." : "Sign in with Google"}
           </button>
         ) : (
-          <div className="relative flex items-center space-x-2">
+          <div className="relative flex items-center gap-3">
             <span className="text-gray-700 font-medium">
               Hi, {user.name}
             </span>
-
             <img
               src={user.avatar}
-              alt={user.name}
-              title={user.name}
+              alt="avatar"
               className="w-10 h-10 rounded-full border-2 border-indigo-600 cursor-pointer"
               onClick={() => setShowDropdown(!showDropdown)}
             />
 
             {showDropdown && (
-              <div className="absolute right-0 mt-12 w-32 bg-white shadow-lg rounded-lg border border-gray-200 z-10">
+              <div className="absolute right-0 top-12 w-32 bg-white shadow-lg rounded-lg border z-10">
                 <button
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-lg"
+                  className="w-full px-4 py-2 text-left hover:bg-gray-100"
                 >
                   Logout
                 </button>
@@ -95,28 +124,72 @@ function HomePage() {
         )}
       </nav>
 
-      {/* Hero Section */}
-      <header className="text-center mt-20 px-4">
-        <h2 className="text-4xl font-bold text-gray-800 mb-4">
-          Upload Videos, Audios, and PDFs
-        </h2>
-        <p className="text-gray-600 max-w-xl mx-auto mb-10">
-          Our AI Chatbot transcribes your files, summarizes them, and gives you
-          instant insights. Get started by logging in with Google!
-        </p>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+        {!user ? (
+          /* Instruction when NOT logged in */
+          <div className="bg-white p-8 rounded-2xl shadow-lg max-w-xl">
+            <h2 className="text-3xl font-bold text-gray-800 mb-4">
+              Welcome to SummarAI 👋
+            </h2>
+            <p className="text-gray-600 mb-6">
+              To use SummarAI and start chatting with your PDFs, videos, and
+              audios, please sign in with Google first.
+            </p>
+            <p className="text-indigo-600 font-medium">
+              🔐 Login is required to continue
+            </p>
+          </div>
+        ) : (
+          /* Logged-in welcome */
+          <div className="max-w-2xl mb-10">
+            <h2 className="text-4xl font-bold text-gray-800 mb-3">
+              Ask anything. Upload anything.
+            </h2>
+            <p className="text-gray-600">
+              Upload PDFs, videos, or audios and get instant AI-powered summaries
+              and answers.
+            </p>
+          </div>
+        )}
+      </main>
 
-        <div className="flex justify-center gap-4 flex-wrap">
-          <button className="bg-indigo-500 text-white px-6 py-3 rounded-lg hover:bg-indigo-600 transition">
-            Upload Video
-          </button>
-          <button className="bg-indigo-500 text-white px-6 py-3 rounded-lg hover:bg-indigo-600 transition">
-            Upload Audio
-          </button>
-          <button className="bg-indigo-500 text-white px-6 py-3 rounded-lg hover:bg-indigo-600 transition">
-            Upload PDF
-          </button>
+      {/* Chat Input Bar (Only when logged in) */}
+      {user && (
+        <div className="w-full px-4 pb-6">
+          <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg flex items-center gap-3 px-4 py-3">
+            {/* Upload Icons */}
+            <div className="flex items-center gap-3 text-gray-500">
+              <button title="Upload PDF" className="hover:text-indigo-600">
+                <FiFileText size={20} />
+              </button>
+              <button title="Upload Video" className="hover:text-indigo-600">
+                <FiVideo size={20} />
+              </button>
+              <button title="Upload Audio" className="hover:text-indigo-600">
+                <FiMusic size={20} />
+              </button>
+            </div>
+
+            {/* Prompt Input */}
+            <input
+              type="text"
+              placeholder="Ask a question or upload a file..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="flex-1 outline-none text-gray-700 placeholder-gray-400 px-2"
+            />
+
+            {/* Send Button */}
+            <button
+              onClick={handleSendPrompt}
+              className="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 transition"
+            >
+              <FiSend size={18} />
+            </button>
+          </div>
         </div>
-      </header>
+      )}
     </div>
   );
 }
