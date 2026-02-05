@@ -9,14 +9,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <UserProvider>
       <App />
-      {/* 🔔 Toast container */}
+
+      {/* 🔔 Toast container (TOP-CENTER) */}
       <Toaster
-        position="top-right"
+        position="top-center"
         toastOptions={{
-          duration: 3000,
+          duration: 2000,
         }}
       />
     </UserProvider>
   </React.StrictMode>
 );
+
 
