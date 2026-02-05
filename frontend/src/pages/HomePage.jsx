@@ -5,43 +5,22 @@ import { auth, googleProvider } from "../firebase";
 import { useUser } from "../context/UserContext";
 
 function HomePage() {
-  const { user, setUser, loading } = useUser();
+  const { user, loading } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
 
   const googleLogin = async () => {
-    if (loginLoading) return;
-
-    setLoginLoading(true);
-    const toastId = toast.loading("Signing in with Google...");
+    const toastId = toast.loading("Opening Google sign-in...");
 
     try {
       const result = await signInWithPopup(auth, googleProvider);
+
+      // 🔹 Fire backend sync in background (DO NOT BLOCK UI)
       const idToken = await result.user.getIdToken(true);
-
-      const response = await fetch(
-        "https://summarai-3.onrender.com/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Backend login failed");
-      }
-
-      await response.json();
-
-      // Save user info in context
-      setUser({
-        name: result.user.displayName,
-        email: result.user.email,
-        avatar: result.user.photoURL,
+      fetch("https://summarai-3.onrender.com/api/auth/login", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
 
       toast.success(`Welcome ${result.user.displayName}! 🎉`, {
@@ -50,16 +29,14 @@ function HomePage() {
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Login failed", { id: toastId });
-    } finally {
-      setLoginLoading(false);
     }
   };
 
   const handleLogout = async () => {
     const toastId = toast.loading("Logging out...");
+
     try {
       await signOut(auth);
-      setUser(null);
       setShowDropdown(false);
       toast.success("Logged out successfully 👋", { id: toastId });
     } catch (err) {
@@ -68,7 +45,7 @@ function HomePage() {
     }
   };
 
-  // ✅ Prevent UI flash while checking auth state
+  // ✅ Prevent UI flash while Firebase restores auth state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -86,14 +63,9 @@ function HomePage() {
         {!user ? (
           <button
             onClick={googleLogin}
-            disabled={loginLoading}
-            className={`px-4 py-2 rounded-lg shadow transition text-white ${
-              loginLoading
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition"
           >
-            {loginLoading ? "Signing in..." : "Sign in with Google"}
+            Sign in with Google
           </button>
         ) : (
           <div className="relative flex items-center space-x-2">
