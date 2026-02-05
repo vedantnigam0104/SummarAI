@@ -1,14 +1,15 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // ✅ new loading flag
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser({
           name: firebaseUser.displayName,
@@ -18,7 +19,7 @@ export const UserProvider = ({ children }) => {
       } else {
         setUser(null);
       }
-      setLoading(false); // ✅ Firebase check finished
+      setLoading(false);
     });
 
     return () => unsubscribe();
